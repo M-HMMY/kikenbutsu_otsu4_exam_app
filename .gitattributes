@@ -1,0 +1,2 @@
+# バッチファイルは CRLF でないと環境によって動かない
+*.cmd text eol=crlf
