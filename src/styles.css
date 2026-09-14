@@ -2718,3 +2718,138 @@ textarea {
   color: var(--ng);
   border-color: var(--ng);
 }
+
+/* --- 体験ウィジェット（baisu / inkaten / shouka） ----------------------------
+   3 つとも「値を動かして向きを確かめる」道具なので、
+   結果の欄（.widget-result）を大きく、注記（.widget-note）を小さく置いている。
+   色は既存のトークンをそのまま使う（--ok / --warn / --ng）。 */
+
+.widget-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.widget-lead {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.widget-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.widget-slider > span {
+  flex: 0 0 auto;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.widget-slider input[type='range'] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.widget-list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.9rem;
+  line-height: 1.8;
+  color: var(--text-sub);
+}
+
+.widget-list li.passed {
+  color: var(--text);
+}
+
+.widget-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.widget-card {
+  flex: 1 1 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.widget-card.on {
+  border-color: var(--ng);
+  background: var(--ng-soft);
+}
+
+.widget-card.off {
+  opacity: 0.6;
+}
+
+.widget-card .widget-state {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.widget-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.widget-result {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  line-height: 1.8;
+}
+
+.widget-result.tone-safe {
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.widget-result.tone-warn {
+  border-color: var(--warn);
+}
+
+.widget-result.tone-danger {
+  border-color: var(--ng);
+  background: var(--ng-soft);
+}
+
+.widget-warn {
+  color: var(--ng);
+  font-weight: 600;
+}
+
+.widget-table select,
+.widget-table input[type='number'] {
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  max-width: 100%;
+}
+
+.widget-table input[type='number'] {
+  width: 7em;
+}
+
+.widget-table .widget-note {
+  display: block;
+  margin-top: 2px;
+}
