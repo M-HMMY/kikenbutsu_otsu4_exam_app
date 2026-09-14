@@ -147,12 +147,18 @@ function click(text, tag = 'button') {
   );
 }
 
-/** 選択肢（ア〜エ）の n 番目を押す。確認問題と模試で使う。 */
+/**
+ * 選択肢（ア〜オ）の n 番目を押す。確認問題と模試で使う。
+ *
+ * **この試験は五肢択一なので「オ」まである。**姉妹アプリは四肢択一で、
+ * ここが「ア〜エ」のままだった。5 つめを押せないことに黙って気づけない形なので、
+ * 下の筋書きで**選択肢が 5 つあることを数えて確かめている。**
+ */
 function choose(n) {
   return evaluate(
     `(() => {
        const b = [...document.querySelectorAll('button')]
-         .filter((x) => /^[アイウエ]/.test(x.innerText.trim()));
+         .filter((x) => /^[アイウエオ]/.test(x.innerText.trim()));
        if (!b[${n}]) return 'NO_CHOICES';
        b[${n}].click();
        return 'OK';
@@ -170,15 +176,33 @@ function isMulti() {
   return evaluate(`document.querySelector('.tag-multi') !== null`);
 }
 
+// 教本の 43 節。`docs/section-plan.md` と `src/data/textbook/index.ts` の並びに合わせてある。
+//
+// **ここに直接書いてあるのはわざとです。**アプリ側から拾うと、
+// 節が 1 つ抜け落ちたときに「抜けたまま全部通った」ことになる。
+// 数が合わなければ下で止まる。
+const ALL_SECTIONS = [
+  'i-1', 'i-2', 'i-3', 'i-4',
+  'lw-1', 'lw-2', 'lw-3', 'lw-4',
+  'lp-1', 'lp-2', 'lp-3', 'lp-4',
+  'lm-1', 'lm-2', 'lm-3', 'lm-4',
+  'lr-1', 'lr-2', 'lr-3', 'lr-4',
+  'sb-1', 'sb-2', 'sb-3', 'sb-4', 'sb-5', 'sb-6',
+  'sf-1', 'sf-2', 'sf-3',
+  'ss-1', 'ss-2', 'ss-3',
+  'pc-1', 'pc-2', 'pc-3', 'pc-4', 'pc-5',
+  'pe-1', 'pe-2', 'pe-3', 'pe-4', 'pe-5', 'pe-6',
+];
+
 const report = [];
 const show = (title, body) => report.push(`\n===== ${title} =====\n${body}`);
 
 // ============================================================
 // 筋書き — ここだけ書き換えて使う
 //
-// **まだ教本 1 節・問題 0 問しかない。**中身が入ったら、
+// **いまは入門編 4 節・問題 0 問。**確認問題が入ったら、
 // 姉妹アプリと同じく「節 → 確認問題を 1 問解いて採点 → 模試 → 体験ツール」まで
-// 押すように書き換えること。いまは骨格が立ち上がるかだけを見ている。
+// 押すように書き換えること。いまは入門編 4 節が描けるかまでを見ている。
 // ============================================================
 
 await send('Page.enable');
@@ -200,17 +224,259 @@ await sleep(1500);
 show('ホーム', (await visible()).slice(0, 500));
 
 // 教本の節が描けるか。表と quiz の記法が崩れていないかもここで分かる。
-await go('#/textbook/i-1');
-show('教本 i-1', (await visible()).slice(0, 900));
+//
+// **43 節すべてを開く。**節ごとに書いた人が違ううえ、図の記法は
+// `npm run check` が書式までしか見ない。実際に描かせないと、
+// 「枠は出るが中身が空」という壊れ方が残る。
+//
+// 全節ぶんの本文を貼ると報告が読めなくなるので、**節ごとには要約だけを出し、
+// 異常があったものだけを本文つきで出す。**
+const sectionReport = [];
+const badSections = [];
 
-// 模試の設定画面。**この試験は合格基準が公表されている**ので、
-// 姉妹アプリと違い「科目ごとに 60 %」と出るのが正しい。
-await go('#/mock');
-show('模試の設定', (await visible()).slice(0, 700));
+for (const id of ALL_SECTIONS) {
+  await go(`#/textbook/${id}`);
+  const info = await evaluate(
+    `(() => {
+       const page = document.querySelector('.page');
+       if (!page) return { missing: true };
+       const text = page.innerText;
+       return {
+         chars: text.length,
+         // 節の骨格。digest.ts が直前チェックシートへ抜き出すもの。
+         hasSummary: text.includes('この節のまとめ'),
+         hasPoint: text.includes('試験のポイント'),
+         // 図と表と一問一答が、実際に要素として出ているか
+         diagrams: document.querySelectorAll('.dgm').length,
+         tables: document.querySelectorAll('table').length,
+         quizzes: document.querySelectorAll('.selfcheck-item').length,
+         // 描けなかったときに出る形跡
+         nan: /NaN|undefined|\\[object Object\\]/.test(text),
+         // 記法が崩れると、生の記号が本文に出てくる
+         raw: new RegExp('\\\\*\\\\*|::|' + String.fromCharCode(96).repeat(3)).test(text),
+       };
+     })()`,
+  );
+  const flags = [];
+  if (info.missing) flags.push('描けていない');
+  if (!info.hasSummary) flags.push('まとめが無い');
+  if (!info.hasPoint) flags.push('試験のポイントが無い');
+  if (info.nan) flags.push('NaN/undefined が出ている');
+  if (info.raw) flags.push('記法の生の記号が出ている');
+  if (info.chars < 800) flags.push(`短すぎる（${info.chars} 字）`);
 
-// 体験ツール。まだ 1 つも作っていないので、空でも壊れないことを見る。
+  sectionReport.push(
+    `${id.padEnd(6)} ${String(info.chars ?? 0).padStart(5)}字  ` +
+      `図${info.diagrams ?? 0} 表${info.tables ?? 0} 一問一答${info.quizzes ?? 0}` +
+      (flags.length ? `  ★ ${flags.join(' / ')}` : ''),
+  );
+  if (flags.length) badSections.push(id);
+}
+
+show('教本 43 節', sectionReport.join('\n'));
+
+// 異常のあった節だけ、本文を出して目で見る
+for (const id of badSections.slice(0, 5)) {
+  await go(`#/textbook/${id}`);
+  show(`教本 ${id}（要確認）`, (await visible()).slice(0, 900));
+}
+
+// 直前チェックシート。各節の「まとめ」「試験のポイント」「よくある勘違い」を
+// digest.ts が機械的に抜き出す。**書式が崩れていれば、ここに出てこない。**
+await go('#/sheet');
+{
+  const n = await evaluate(
+    `document.querySelectorAll('.sheet-section, .sheet h3, .page h3').length`,
+  );
+  show('直前チェックシート', `見出しの数: ${n}\n` + (await visible()).slice(0, 900));
+}
+
+// 計算ドリル。**この試験には計算問題が出る**ので、姉妹アプリと違って中身がある。
+// 値を振り直して出すため、**選択肢が 5 つ揃うか**をここで数える。
+await go('#/drill');
+show('計算ドリルの一覧', (await visible()).slice(0, 600));
+
+{
+  // **一覧で名前を押すと、その種類の選択が外れるだけ**（チェックボックス）。
+  // 実際に問題を出すのは「ドリルを始める」。ここを取り違えて
+  // 「選択肢が 0 個」という誤った結果を出したことがある。
+  const drillReport = [];
+
+  await go('#/drill');
+  await click('すべて選ぶ');
+  await sleep(300);
+  const started = await click('ドリルを始める');
+  await sleep(800);
+
+  if (started !== 'OK') {
+    drillReport.push('「ドリルを始める」が押せなかった: ' + started);
+  } else {
+    // 6 種類すべてが出るまで、何問か続けて解く。
+    // 値は毎回振り直されるので、**同じ種類でも別の問題**になる。
+    const seen = new Set();
+    for (let i = 0; i < 24; i += 1) {
+      const info = await evaluate(
+        `(() => {
+           const page = document.querySelector('.page');
+           const text = page ? page.innerText : '';
+           const choices = [...document.querySelectorAll('button')]
+             .filter((x) => /^[アイウエオ]/.test(x.innerText.trim()));
+           return {
+             choices: choices.length,
+             labels: choices.map((c) => c.innerText.trim().slice(0, 28)),
+             nan: /NaN|undefined|Infinity/.test(text),
+             head: text.slice(0, 220).replace(/\s+/g, ' '),
+           };
+         })()`,
+      );
+
+      if (info.choices === 0) {
+        drillReport.push(`${i + 1} 問目: 選択肢が出ていない  ${info.head}`);
+        break;
+      }
+
+      const flags = [];
+      if (info.choices !== 5) flags.push(`★ 選択肢が ${info.choices} 個（五肢択一なので 5 個のはず）`);
+      if (info.nan) flags.push('★ NaN/undefined/Infinity が出ている');
+      // 同じ文字列の選択肢が 2 つあると、正解が一意に決まらない
+      if (new Set(info.labels).size !== info.labels.length) flags.push('★ 同じ選択肢が重複している');
+
+      const key = info.head.slice(0, 40);
+      if (!seen.has(key) || flags.length) {
+        seen.add(key);
+        drillReport.push(`${i + 1} 問目: 選択肢 ${info.choices} 個 ${flags.join(' ')}\n    ${info.head}`);
+      }
+
+      // 1 つ選んで採点し、次へ進む
+      await choose(0);
+      await sleep(200);
+      await click('解答する');
+      await sleep(200);
+      const next = await click('次の問題へ');
+      await sleep(400);
+      if (next !== 'OK') {
+        drillReport.push(`${i + 1} 問目のあと「次の問題」が押せなかった（${next}）`);
+        break;
+      }
+    }
+  }
+
+  show('計算ドリル', drillReport.join('\n'));
+}
+
+// 体験ツール。**押して壊れないかまで見る。**
+// 置いてあるだけでは、つまみを動かしたときに NaN が出ても分からない。
 await go('#/tools');
-show('体験ツール', (await visible()).slice(0, 400));
+show('体験ツールの一覧', (await visible()).slice(0, 600));
+
+{
+  const toolReport = [];
+  const ids = await evaluate(`window.__widgetIds ?? null`);
+  toolReport.push('教本に埋め込んだウィジェット: baisu / inkaten / shouka');
+
+  // 教本の節に埋め込んだものを、節ごと開いて操作する
+  for (const [sec, wid] of [['lw-4', 'baisu'], ['sf-2', 'inkaten'], ['ss-1', 'shouka']]) {
+    await go(`#/textbook/${sec}`);
+    const found = await evaluate(`document.querySelectorAll('.widget').length`);
+    if (!found) {
+      toolReport.push(`${sec}: ${wid} が描かれていない`);
+      continue;
+    }
+
+    // つまみ・選択・ボタンを一通り動かす
+    await evaluate(
+      `(() => {
+         const set = (el, v) => {
+           const proto = Object.getPrototypeOf(el);
+           const d = Object.getOwnPropertyDescriptor(proto, 'value');
+           d.set.call(el, String(v));
+           el.dispatchEvent(new Event('input', { bubbles: true }));
+           el.dispatchEvent(new Event('change', { bubbles: true }));
+         };
+         for (const r of document.querySelectorAll('.widget input[type=range]')) set(r, r.max);
+         for (const n of document.querySelectorAll('.widget input[type=number]')) set(n, 9999);
+         for (const sel of document.querySelectorAll('.widget select')) {
+           set(sel, sel.options[sel.options.length - 1].value);
+         }
+         for (const b of document.querySelectorAll('.widget .widget-card')) b.click();
+         return true;
+       })()`,
+    );
+    await sleep(400);
+
+    const after = await evaluate(
+      `(() => {
+         const w = document.querySelector('.widget');
+         const t = w ? w.innerText : '';
+         return {
+           chars: t.length,
+           bad: /NaN|undefined|Infinity|\\[object Object\\]/.test(t),
+           tail: t.slice(-180).replace(/\\s+/g, ' '),
+         };
+       })()`,
+    );
+    toolReport.push(
+      `${sec} / ${wid}: ${after.chars} 字` +
+        (after.bad ? '  ★ NaN/undefined が出ている' : '') +
+        `\n    ${after.tail}`,
+    );
+  }
+  show('体験ウィジェット（操作したあと）', toolReport.join('\n'));
+}
+
+// 確認問題。**105 問入ったので、実際に解いて採点まで押す。**
+await go('#/practice');
+show('確認問題の設定', (await visible()).slice(0, 500));
+{
+  const qReport = [];
+  // ボタンの文言は「10 問を開始する」のように出題数が入る。**文字で押すので前方一致で探す。**
+  const started = (await click('問を開始する')) === 'OK';
+  await sleep(700);
+  if (!started) {
+    qReport.push('開始ボタンが押せなかった');
+  } else {
+    for (let i = 0; i < 6; i += 1) {
+      const info = await evaluate(
+        `(() => {
+           const page = document.querySelector('.page');
+           const text = page ? page.innerText : '';
+           const choices = [...document.querySelectorAll('button')]
+             .filter((x) => /^[アイウエオ]/.test(x.innerText.trim()));
+           return { choices: choices.length, head: text.slice(0, 120).replace(/\\s+/g, ' ') };
+         })()`,
+      );
+      if (info.choices === 0) {
+        qReport.push(`${i + 1} 問目: 選択肢が出ていない  ${info.head}`);
+        break;
+      }
+      qReport.push(
+        `${i + 1} 問目: 選択肢 ${info.choices} 個` +
+          (info.choices === 5 ? '' : '  ★ 五肢択一なので 5 個のはず'),
+      );
+      await choose(i % 5);
+      await sleep(150);
+      await click('解答する');
+      await sleep(250);
+      // 解説に教本への導線があるか（sectionId が効いているか）
+      if (i === 0) {
+        const link = await evaluate(
+          `[...document.querySelectorAll('button, a')]
+             .some((e) => /この節を読む|教本/.test(e.innerText))`,
+        );
+        qReport.push(`  解説から教本へ戻る導線: ${link ? 'ある' : '★ 無い'}`);
+      }
+      if (await click('次の問題') !== 'OK') break;
+      await sleep(300);
+    }
+  }
+  show('確認問題', qReport.join('\n'));
+}
+
+// 模試。**科目ごとの判定が出るのがこのアプリの要。**
+await go('#/mock');
+show('模試の設定', (await visible()).slice(0, 800));
+
+// ============================================================
 
 // ============================================================
 

@@ -453,7 +453,7 @@ export function Mock(): JSX.Element {
         </button>
       </div>
       <p className="kbd-hint">
-        <kbd>1</kbd>〜<kbd>4</kbd> で選択、<kbd>←</kbd> <kbd>→</kbd> で問題を移動できます
+        <kbd>1</kbd>〜<kbd>5</kbd> で選択、<kbd>←</kbd> <kbd>→</kbd> で問題を移動できます
       </p>
 
       <section className="section">

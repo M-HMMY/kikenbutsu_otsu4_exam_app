@@ -4,3 +4,8 @@ dist/
 .DS_Store
 .vscode/
 *.tsbuildinfo
+
+# Codex の作業報告（執筆・レビューの実行ログ）。
+# 中身は作業中にだけ意味があるもので、リポジトリに残す価値がない。
+out-*.txt
+review-*.txt

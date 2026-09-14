@@ -63,27 +63,35 @@ export function Drill(): JSX.Element {
     });
   }, []);
 
+  /**
+   * 解答する。
+   *
+   * **`actions.answer` を `setSession` の更新関数の中で呼ばないこと。**
+   * 更新関数は React の描画中に走るので、そこでストアを書き換えると
+   * 「描画中に別のコンポーネントを更新した」という警告が出る。
+   * さらに **StrictMode では更新関数が 2 回走るため、学習記録が二重に入る。**
+   * 同じ誤りが姉妹アプリの `Practice.tsx` でも起き、`scripts/drive.mjs` で見つかった。
+   * **記録は更新関数の外で、1 回だけ呼ぶ。**
+   */
   const submit = useCallback(() => {
-    setSession((s) => {
-      if (s === null || s.revealed || s.selected === null) return s;
-      const ok = s.selected === s.item.answer;
-      actions.answer({
-        qid: drillQid(s.drill.id),
-        categoryId: s.drill.categoryId,
-        correct: ok,
-        mode: 'drill',
-      });
-      const streak = ok ? s.streak + 1 : 0;
-      return {
-        ...s,
-        revealed: true,
-        total: s.total + 1,
-        correct: s.correct + (ok ? 1 : 0),
-        streak,
-        bestStreak: Math.max(s.bestStreak, streak),
-      };
+    if (session === null || session.revealed || session.selected === null) return;
+    const ok = session.selected === session.item.answer;
+    actions.answer({
+      qid: drillQid(session.drill.id),
+      categoryId: session.drill.categoryId,
+      correct: ok,
+      mode: 'drill',
     });
-  }, []);
+    const streak = ok ? session.streak + 1 : 0;
+    setSession({
+      ...session,
+      revealed: true,
+      total: session.total + 1,
+      correct: session.correct + (ok ? 1 : 0),
+      streak,
+      bestStreak: Math.max(session.bestStreak, streak),
+    });
+  }, [session]);
 
   useKeys(
     useCallback(
@@ -245,7 +253,7 @@ export function Drill(): JSX.Element {
             </button>
           )}
           <span className="kbd-hint">
-            <kbd>1</kbd>〜<kbd>4</kbd> で選択、<kbd>Enter</kbd> で解答・次へ
+            <kbd>1</kbd>〜<kbd>5</kbd> で選択、<kbd>Enter</kbd> で解答・次へ
           </span>
         </div>
       </article>

@@ -5,14 +5,14 @@
  * ここで機械的に潰しておくと、あとから「なぜか画面に出ない」を探さずに済む。
  * 新しい不整合の型を見つけたら、直すついでにこのファイルへ検査を足すこと。
  */
-import { CATEGORIES } from '../src/data/categories';
+import { CATEGORIES, FIELDS } from '../src/data/categories';
 import { SECTIONS } from '../src/data/textbook';
 import { QUESTIONS } from '../src/data/questions';
 import { DRILLS } from '../src/data/drills';
 import { isKnownCommand } from '../src/lib/mathSymbols';
 import { answerIndices, isMultiAnswer } from '../src/lib/answer';
 import { renderCheck } from './render-check';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 
 const BACKSLASH = String.fromCharCode(92);
 const LF = String.fromCharCode(10);
@@ -57,6 +57,17 @@ for (const q of QUESTIONS) {
 for (const d of DRILLS) {
   if (!categoryIds.has(d.categoryId)) err(`ドリル ${d.id}: 存在しない分野 ${d.categoryId}`);
   if (!sectionIds.has(d.sectionId)) err(`ドリル ${d.id}: 存在しない節 ${d.sectionId}`);
+}
+
+// ---- 章の出題数の合計が、科目の公表値と合っているか ----
+// この試験は科目ごとの問題数（法令 15 / 物化 10 / 性消 10）が公表されている。
+// 章の questions はそれを章へ割ったものなので、合計は公表値と一致しなければならない。
+// ずれたまま章を足すと、模試の構成比が黙って本番と違うものになる（画面にも型にも出ない）。
+for (const f of FIELDS) {
+  const sum = CATEGORIES.filter((c) => c.field === f.id).reduce((n, c) => n + c.questions, 0);
+  if (sum !== f.questions) {
+    err(`科目「${f.name}」: 章の questions の合計が ${sum} 問。公表値は ${f.questions} 問`);
+  }
 }
 
 // ---- 問題の形 ----
@@ -239,6 +250,42 @@ for (const q of QUESTIONS) {
   }
 }
 
+// ---- 正解の位置の偏りを、章ごとにも見る ----
+//
+// **全体で平らでも、章ごとに偏っていれば意味がない。**
+// このアプリの模試は**科目ごとに出題する**ので、科目のまとまりで当てられる。
+//
+// 実際に起きた（2026 年 9 月 13 日、別の目によるレビューで発覚）：
+// 全体は 18/21/23/19/24 で平らだったのに、`prop-each` は**オが 15 問中 8 問**、
+// アが 0 問だった。**「迷ったらオ」で 15 問中 8 問取れる状態。**
+// 全体集計の検査は、この偏りを 1 件も警告しなかった。
+{
+  const byCategory = new Map<string, number[]>();
+  for (const q of QUESTIONS) {
+    if (typeof q.answer !== 'number') continue; // 複数選択は対象外
+    const pos = byCategory.get(q.categoryId) ?? [0, 0, 0, 0, 0];
+    pos[q.answer] = (pos[q.answer] ?? 0) + 1;
+    byCategory.set(q.categoryId, pos);
+  }
+  for (const [categoryId, pos] of byCategory) {
+    const total = pos.reduce((a, b) => a + b, 0);
+    // 少ない章で閾値を当てると誤検出になる。10 問以上の章だけを見る。
+    if (total < 10) continue;
+    pos.forEach((c, i) => {
+      const rate = c / total;
+      // 章単位は問題数が少ないので、全体（0.12〜0.30）より幅を持たせる。
+      // それでも「1 つの位置に 4 割」「1 つの位置が 0」は拾える。
+      if (rate === 0 || rate > 0.4) {
+        const name = CATEGORIES.find((c2) => c2.id === categoryId)?.name ?? categoryId;
+        warn(
+          `章「${name}」: 正解の位置が ${'アイウエオ'[i]} に ${c} / ${total} 問。` +
+            '模試は科目ごとに出すので、章のまとまりで当てられる',
+        );
+      }
+    });
+  }
+}
+
 // ---- 問題文が本番で読み切れる長さか ----
 // **この試験は時間に余裕がある。**35 問 / 120 分なので 1 問あたり約 3 分 26 秒で、
 // 姉妹アプリ（1 問 60 秒）の 3 倍以上ある。しかも法令の科目は条文を読ませるので、
@@ -368,7 +415,8 @@ for (const s of SECTIONS) {
   if (!body.includes('# ざっくり言うと')) warn(`教本 ${s.id}: 「# ざっくり言うと」がない`);
   if (!body.includes('# この節のまとめ')) warn(`教本 ${s.id}: 「# この節のまとめ」がない（チェックシートに載らない）`);
   if (!body.includes('> **試験のポイント**')) warn(`教本 ${s.id}: 「> **試験のポイント**」がない`);
-  // 1 問 60 秒の試験なので、一問一答は速度対策そのもの。薄い節を数える。
+  // この試験は 1 問あたり約 3 分 26 秒あり、速さより「数字を覚えているか」で決まる。
+  // 指定数量・引火点・保安距離は一問一答が向くので、薄い節を数える。
   const quizzes = body.split(LF).filter((l) => l.includes('::')).length;
   if (quizzes === 0) warn(`教本 ${s.id}: quiz ブロックがない（この試験では一問一答が速度対策になる）`);
   else if (quizzes < 4) warn(`教本 ${s.id}: 一問一答が ${quizzes} 問と少ない（目安は 5 問以上）`);
@@ -378,8 +426,10 @@ for (const s of SECTIONS) {
 for (const d of DRILLS) {
   for (let i = 0; i < 200; i++) {
     const item = d.generate();
-    if (item.choices.length !== 4) {
-      err(`ドリル ${d.id}: 選択肢が ${item.choices.length} 個になる場合がある`);
+    // **5 択。**この試験は五肢択一式なので、ドリルも本番と同じ数にそろえてある
+    // （姉妹アプリは四肢択一で 4 択だった。移植したまま 4 だと手応えが変わる）。
+    if (item.choices.length !== 5) {
+      err(`ドリル ${d.id}: 選択肢が ${item.choices.length} 個になる場合がある（5 個であること）`);
       break;
     }
     if (new Set(item.choices).size !== item.choices.length) {
@@ -514,6 +564,27 @@ for (const s of SECTIONS) {
 // 飛び先が実在するかだけでは、**別の節を指してしまった**誤りを捕まえられない。
 // 実際に「[誤差関数の節](textbook/i-3)」のように、ラベルと飛び先が食い違った例が出た。
 // そこで、ラベルが他の節のタイトルと一致しているのに別の節を指している場合を警告する。
+// **教本を並行で書かせている間は、まだ書かれていない節へのリンクが必ず出る。**
+// 章を 1 ファイル 1 担当で同時に書く運用なので、他章への相互リンクは
+// 「飛び先がまだ空」の状態で書かれる。これをエラーにすると、
+// 全章が揃うまで npm run check が一度も通らなくなり、検査が使えなくなる。
+//
+// そこで、**執筆側に渡してある節 ID の一覧**（scripts/prompts/00-common.md の
+// 「リンクしてよい節 ID」の表）を読み、そこに載っている id への未着の
+// リンクは警告にとどめる。載っていない id は今までどおりエラー。
+// 一覧を 2 か所に持たないよう、プロンプトの表をそのまま正本として読んでいる。
+const plannedIds = new Set<string>();
+{
+  const promptPath = 'scripts/prompts/00-common.md';
+  if (existsSync(promptPath)) {
+    const md = readFileSync(promptPath, 'utf8');
+    for (const m of md.matchAll(/^\| `([a-z]+-?\d+)` \|/gm)) plannedIds.add(m[1]);
+  }
+  if (plannedIds.size === 0) {
+    warn('scripts/prompts/00-common.md から節 ID の一覧を読めなかった（表の書式が変わった可能性）');
+  }
+}
+
 const titleToId = new Map(SECTIONS.map((s) => [s.title, s.id]));
 const linkRe = /\[([^\]]+)\]\(([^)\s]+)\)/g;
 for (const s of SECTIONS) {
@@ -529,7 +600,11 @@ for (const s of SECTIONS) {
     }
     if (page !== 'textbook' || param === undefined) continue;
     if (!sectionIds.has(param)) {
-      err(`教本 ${s.id}: 存在しない節へのリンク ${to}`);
+      if (plannedIds.has(param)) {
+        warn(`教本 ${s.id}: まだ書かれていない節へのリンク ${to}（その章を書けば消えます）`);
+      } else {
+        err(`教本 ${s.id}: 存在しない節へのリンク ${to}`);
+      }
       continue;
     }
     const byTitle = titleToId.get(label);

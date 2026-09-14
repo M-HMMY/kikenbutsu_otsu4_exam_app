@@ -286,7 +286,7 @@ export function Practice(): JSX.Element {
           中断する
         </button>
         <span className="kbd-hint">
-          <kbd>1</kbd>〜<kbd>4</kbd> で選択、<kbd>Enter</kbd> で解答・次へ
+          <kbd>1</kbd>〜<kbd>5</kbd> で選択、<kbd>Enter</kbd> で解答・次へ
         </span>
       </div>
     </div>

@@ -52,7 +52,7 @@ export function Review(): JSX.Element {
     [queue, idx, selected],
   );
 
-  // 1〜4 で選択／手応えの指定、Enter で解答・標準の手応え
+  // 1〜5 で選択（五肢択一）／手応えの指定、Enter で解答・標準の手応え
   useKeys(
     useCallback(
       (key: string) => {
