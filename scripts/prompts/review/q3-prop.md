@@ -1,7 +1,7 @@
 # 確認問題レビュー：危険物の性質並びにその火災予防及び消火の方法（30 問）
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox read-only --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
   - < scripts/prompts/review/q3-prop.md > review-q3-prop.txt 2>&1
 ```
 

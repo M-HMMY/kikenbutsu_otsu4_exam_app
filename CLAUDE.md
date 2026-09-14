@@ -289,7 +289,7 @@ Codex に 9 ジョブ走らせ、**181 件**の指摘を一次資料で裏を取
 - **同じ適応表を 4 問で焼き直していた。**しかも 1 問は科目の線引きを越えていた
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox read-only --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
   - < scripts/prompts/review/r1-intro-lw.md > review-r1.txt 2>&1
 ```
 

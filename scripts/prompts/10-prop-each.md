@@ -1,7 +1,7 @@
 # 第 9 章「品名ごとの性質」を書かせるプロンプト
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
   -o out-10.txt - < scripts/prompts/10-prop-each.md
 ```
 

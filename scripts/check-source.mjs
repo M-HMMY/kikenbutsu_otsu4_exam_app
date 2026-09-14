@@ -210,6 +210,76 @@ for (const root of ROOTS) {
   }
 }
 
+/*
+ * 4. 姉妹アプリと共有する入れ物に、アプリ固有の名前が付いているか。
+ *
+ * localStorage も Cache Storage も**オリジン単位**なので、
+ * github.io に姉妹アプリを並べると 1 つの入れ物を共有する。
+ *   - localStorage のキーがぶつかれば、学習記録が混ざる
+ *   - サービスワーカーの activate が「自分以外」を消せば、隣のキャッシュまで巻き添えになる
+ *
+ * どちらも `package.json` の名前を接頭辞にすれば、ぶつからない。
+ * **リポジトリ名を改めたときに、片方だけ直し忘れる形で起きる。**
+ * 実際に、乙 4 版の改名で見つかった（2026 年 9 月 15 日）。
+ */
+{
+  let pkgName = '';
+  try {
+    pkgName = JSON.parse(readFileSync('package.json', 'utf8')).name || '';
+  } catch {
+    pkgName = ''; // package.json が読めないときは、この検査を飛ばす
+  }
+
+  const lineOf = (text, index) => text.slice(0, index).split('\n').length;
+
+  if (pkgName) {
+    try {
+      const sw = readFileSync('public/sw.js', 'utf8');
+      const m = sw.match(/const CACHE_PREFIX = '([^']*)'/);
+      if (!m) {
+        problems.push({
+          file: 'public/sw.js',
+          line: 1,
+          text: 'CACHE_PREFIX が見つからない',
+          why: 'キャッシュ名がオリジンの中でアプリ固有になっていません',
+        });
+      } else if (m[1] !== pkgName + '-') {
+        problems.push({
+          file: 'public/sw.js',
+          line: lineOf(sw, m.index),
+          text: m[1] + '  （package.json は ' + pkgName + '）',
+          why: 'キャッシュの接頭辞がオリジンの中でアプリ固有になっていません。package.json の名前 + "-" にしてください',
+        });
+      }
+      if (!/startsWith\(CACHE_PREFIX\)/.test(sw)) {
+        problems.push({
+          file: 'public/sw.js',
+          line: 1,
+          text: 'activate が startsWith(CACHE_PREFIX) で絞っていない',
+          why: 'オリジンを共有する姉妹アプリのキャッシュまで消します。消すのは自分の接頭辞が付いたものだけにしてください',
+        });
+      }
+    } catch {
+      /* まだ sw.js が無いなら飛ばす */
+    }
+
+    try {
+      const st = readFileSync('src/lib/storage.ts', 'utf8');
+      const m = st.match(/const KEY = '([^']*)'/);
+      if (m && !m[1].startsWith(pkgName + '-')) {
+        problems.push({
+          file: 'src/lib/storage.ts',
+          line: lineOf(st, m.index),
+          text: m[1] + '  （package.json は ' + pkgName + '）',
+          why: 'localStorage のキーがオリジンの中でアプリ固有になっていません。package.json の名前で始めてください',
+        });
+      }
+    } catch {
+      /* まだ storage.ts が無いなら飛ばす */
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error('--- 束ねる前の検査で見つかりました（' + problems.length + ' 件）---');
   for (const p of problems) {
@@ -229,6 +299,10 @@ if (problems.length > 0) {
   if (problems.some((p) => p.why.includes('更新関数'))) {
     console.error('記録は更新関数の外で 1 回だけ呼んでください。');
     console.error('正しい形は src/pages/Practice.tsx の submit にあります。');
+  }
+  if (problems.some((p) => p.why.includes('オリジン'))) {
+    console.error('localStorage と Cache Storage はオリジン単位です。姉妹アプリを同じ github.io に並べると共有します。');
+    console.error('名前は package.json の名前を接頭辞にして、消すときも自分の接頭辞が付いたものだけにしてください。');
   }
   process.exit(1);
 }

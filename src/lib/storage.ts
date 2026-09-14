@@ -1,6 +1,16 @@
 import type { AppState } from '../types';
 
-const KEY = 'otsu4-exam-app-state-v1';
+const KEY = 'kikenbutsu-otsu4-exam-app-state-v1';
+
+/**
+ * リポジトリ名を `otsu4_exam_app` から `kikenbutsu_otsu4_exam_app` へ改めたときの旧キー。
+ *
+ * **公開後に改名したので、すでに学習記録を持っている人がいる。**
+ * localStorage はオリジン（github.io）単位なので、キー名を変えるだけで
+ * 読了状況・解答履歴・復習カード・模試の結果が全部読めなくなる。
+ * 初回の読み込みで一度だけ拾い直す。旧キーは消さずに残してある（戻せるように）。
+ */
+const LEGACY_KEY = 'otsu4-exam-app-state-v1';
 
 export const emptyState: AppState = {
   version: 1,
@@ -12,7 +22,7 @@ export const emptyState: AppState = {
 
 export function loadState(): AppState {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY);
     if (!raw) return { ...emptyState };
     const parsed = JSON.parse(raw) as Partial<AppState>;
     return {

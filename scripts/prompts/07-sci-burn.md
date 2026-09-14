@@ -1,7 +1,7 @@
 # 第 6 章「燃焼の理論」を書かせるプロンプト
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
   -o out-07.txt - < scripts/prompts/07-sci-burn.md
 ```
 

@@ -1,7 +1,7 @@
 # 教本レビュー：燃焼の理論と、消火の理論・静電気
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox read-only --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
   -o review-r4-sf-ss.txt - < scripts/prompts/review/r4-sf-ss.md
 ```
 

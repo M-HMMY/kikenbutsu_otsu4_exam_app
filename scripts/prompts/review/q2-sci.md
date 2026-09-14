@@ -1,7 +1,7 @@
 # 確認問題レビュー：基礎的な物理学及び基礎的な化学（30 問）
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox read-only --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
   - < scripts/prompts/review/q2-sci.md > review-q2-sci.txt 2>&1
 ```
 

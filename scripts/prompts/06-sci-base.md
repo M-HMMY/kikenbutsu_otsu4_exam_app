@@ -1,7 +1,7 @@
 # 第 5 章「物理と化学の基礎」を書かせるプロンプト
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
   -o out-06.txt - < scripts/prompts/06-sci-base.md
 ```
 

@@ -1,7 +1,7 @@
 # 第 2 章「製造所等と手続」を書かせるプロンプト
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
   -o out-03.txt - < scripts/prompts/03-law-place.md
 ```
 

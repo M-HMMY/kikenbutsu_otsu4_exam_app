@@ -49,7 +49,7 @@
 ## 使い方
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
   -o out-02.txt - < scripts/prompts/02-xxx.md
 ```
 

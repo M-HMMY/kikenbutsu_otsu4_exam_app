@@ -1,7 +1,7 @@
 # 教本レビュー：施設の基準・運搬・消火設備と、物化の土台
 
 ```bash
-codex exec --cd "C:/Dev/otsu4_exam_app" --sandbox read-only --color never \
+codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
   -o review-r3-lr-sb.txt - < scripts/prompts/review/r3-lr-sb.md
 ```
 
