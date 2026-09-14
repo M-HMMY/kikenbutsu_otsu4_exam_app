@@ -286,6 +286,45 @@ for (const q of QUESTIONS) {
   }
 }
 
+// ---- 設問の形の比率を、科目ごとにも見る ----
+//
+// 本番（公開問題 35 問）は**誤り選択が約 63 %**。全体でそこへ寄せていても、
+// **科目ごとに割ると別の顔になる。**このアプリの模試は科目ごとに出すので、
+// 受験者が見るのは科目単位の偏りのほうである。
+//
+// 実際に起きた（2026 年 9 月 14 日、別の目によるレビューで発覚）：
+// 全体は 62 % で本番とほぼ同じなのに、科目ごとに割ると
+// **法令 47 % / 物化 67 % / 性消 80 %**と開いていた。
+// 全体集計だけを見ていたので、この開きは 1 件も警告されなかった。
+//
+// **この幅（40〜85 %）は、重い側だけを止めるための線である。**
+// 形をひっくり返す直しは 5 肢すべての再検証が要るので、
+// 上の実測値のような中くらいの開きまで機械で追い立てない。
+{
+  const NEGATIVE = ['誤っている', '妥当でない', '該当しない', '正しくない'];
+  const byField = new Map<string, { neg: number; total: number }>();
+  for (const q of QUESTIONS) {
+    const cat = CATEGORIES.find((c) => c.id === q.categoryId);
+    if (cat === undefined) continue;
+    const acc = byField.get(cat.field) ?? { neg: 0, total: 0 };
+    acc.total += 1;
+    if (NEGATIVE.some((w) => q.question.includes(w))) acc.neg += 1;
+    byField.set(cat.field, acc);
+  }
+  for (const [fieldId, acc] of byField) {
+    if (acc.total < 20) continue; // 少ない科目に閾値を当てると誤検出になる
+    const rate = acc.neg / acc.total;
+    // 本番は 63 %。科目ごとの問題数は多くないので、40〜85 % を許容の幅とする。
+    if (rate < 0.4 || rate > 0.85) {
+      const name = FIELDS.find((f) => f.id === fieldId)?.name ?? fieldId;
+      warn(
+        `科目「${name}」: 誤り選択が ${acc.neg} / ${acc.total} 問（${Math.round(rate * 100)} %）。` +
+          '本番は約 63 %。模試は科目ごとに出すので、科目に入った時点で形が読める',
+      );
+    }
+  }
+}
+
 // ---- 問題文が本番で読み切れる長さか ----
 // **この試験は時間に余裕がある。**35 問 / 120 分なので 1 問あたり約 3 分 26 秒で、
 // 姉妹アプリ（1 問 60 秒）の 3 倍以上ある。しかも法令の科目は条文を読ませるので、
