@@ -2,7 +2,19 @@ import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import type { MockResult, Question } from '../types';
 import { QUESTIONS } from '../data/questions';
 import { QuestionCard } from '../components/QuestionCard';
-import { CATEGORIES, categoryName, EXAM_MINUTES, EXAM_QUESTIONS, FIELDS, fieldName, fieldOfCategory, PASS_RATIO } from '../data/categories';
+import {
+  CATEGORIES,
+  categoryName,
+  EXAM_MINUTES,
+  EXAM_QUESTIONS,
+  EXEMPT_FIELD,
+  EXEMPT_MINUTES,
+  EXEMPT_QUESTIONS,
+  FIELDS,
+  fieldName,
+  fieldOfCategory,
+  PASS_RATIO,
+} from '../data/categories';
 import type { FieldId } from '../types';
 import { actions } from '../store';
 import { navigate } from '../lib/router';
@@ -35,9 +47,18 @@ const toItem = (q: Question): Item => ({ qid: q.id, categoryId: q.categoryId, q 
  * 科目の中でどの章から何問出るかは公表されていないので、そこは `categories.ts` の
  * `questions`（こちらの見立て）を重みにして抽選する。
  * 収録が足りない章があれば、その不足分は他章から補って総数だけは合わせる。
+ *
+ * `fields` を渡すと、その科目だけから作る（**科目免除の形式**で使う）。
+ * このとき、不足分を他章から補うのも**同じ科目の中に限る。**
+ * 免除された科目の問題が混ざったら、免除の形式にならない。
  */
-function build(count: number): Item[] {
-  const weighted = CATEGORIES.filter((c) => c.questions > 0);
+function build(count: number, fields?: FieldId[]): Item[] {
+  const inScope = (categoryId: string): boolean => {
+    if (fields === undefined) return true;
+    const f = fieldOfCategory(categoryId);
+    return f !== undefined && fields.includes(f);
+  };
+  const weighted = CATEGORIES.filter((c) => c.questions > 0 && inScope(c.id));
   const totalWeight = weighted.reduce((n, c) => n + c.questions, 0);
   const picked: Item[] = [];
   const used = new Set<string>();
@@ -51,9 +72,9 @@ function build(count: number): Item[] {
     }
   }
 
-  // 端数と、収録が足りない章の不足分を全体から補う
+  // 端数と、収録が足りない章の不足分を補う。**絞った科目の外からは取らない。**
   if (picked.length < count) {
-    const rest = shuffle(QUESTIONS.filter((q) => !used.has(q.id)));
+    const rest = shuffle(QUESTIONS.filter((q) => !used.has(q.id) && inScope(q.categoryId)));
     for (const q of rest.slice(0, count - picked.length)) picked.push(toItem(q));
   }
   return shuffle(picked).slice(0, count);
@@ -85,6 +106,10 @@ function fieldScores(items: Item[], answers: number[][]): { id: FieldId; total: 
 interface Config {
   count: number;
   minutes: number;
+  /** 出題する科目。未指定なら全科目（本番形式） */
+  fields?: FieldId[];
+  /** 学習記録に残す形式名 */
+  label: string;
 }
 
 /**
@@ -93,8 +118,11 @@ interface Config {
  * **本番形式では、科目の比率を本番どおりにすること**（法令 15 / 物化 10 / 性消 10）。
  * 科目ごとに 6 割という基準がある以上、比率が違うと判定の意味がなくなる。
  * 短い形式は、比率を保ったまま縮める（7 問なら 3 / 2 / 2 のように）。
+ *
+ * **「科目免除」だけは比率の話に乗らない。**免除された科目は 0 問が正しい姿で、
+ * 性消の 10 問だけを 35 分で解く。`fields` で科目を絞ることで表す。
  */
-const PRESETS: (Config & { label: string; note: string })[] = [
+const PRESETS: (Config & { note: string })[] = [
   {
     label: '本番形式',
     count: EXAM_QUESTIONS,
@@ -103,6 +131,19 @@ const PRESETS: (Config & { label: string; note: string })[] = [
   },
   { label: 'ハーフ', count: 18, minutes: 60, note: '18 問 / 60 分。本番と同じペースで半分だけ' },
   { label: '短縮', count: 7, minutes: 24, note: '7 問 / 24 分。すきま時間に' },
+  {
+    label: '科目免除',
+    count: EXEMPT_QUESTIONS,
+    minutes: EXEMPT_MINUTES,
+    fields: [EXEMPT_FIELD],
+    note:
+      EXEMPT_QUESTIONS +
+      ' 問 / ' +
+      EXEMPT_MINUTES +
+      ' 分。すでに乙種の免状を 1 つ持っている人の形式で、' +
+      fieldName(EXEMPT_FIELD) +
+      'だけを解きます',
+  },
 ];
 
 interface Session {
@@ -154,7 +195,7 @@ export function Mock(): JSX.Element {
     actions.addMock({
       id: `mock-${Date.now()}`,
       at: Date.now(),
-      preset: `${s.items.length} 問 / ${s.config.minutes} 分`,
+      preset: `${s.config.label}　${s.items.length} 問 / ${s.config.minutes} 分`,
       total: s.items.length,
       correct,
       elapsed,
@@ -215,7 +256,16 @@ export function Mock(): JSX.Element {
         </header>
         <div className="preset-grid">
           {PRESETS.map((p) => {
-            const enough = QUESTIONS.length >= p.count;
+            // 科目を絞る形式では、**その科目の収録数**で足りるかを見る。
+            // 全体の問題数で判定すると、性消が 10 問未満でも押せてしまう。
+            const pool =
+              p.fields === undefined
+                ? QUESTIONS.length
+                : QUESTIONS.filter((q) => {
+                    const f = fieldOfCategory(q.categoryId);
+                    return f !== undefined && p.fields?.includes(f);
+                  }).length;
+            const enough = pool >= p.count;
             return (
               <button
                 key={p.label}
@@ -224,8 +274,8 @@ export function Mock(): JSX.Element {
                 disabled={!enough}
                 onClick={() =>
                   setSession({
-                    config: { count: p.count, minutes: p.minutes },
-                    items: build(p.count),
+                    config: { count: p.count, minutes: p.minutes, fields: p.fields, label: p.label },
+                    items: build(p.count, p.fields),
                     answers: Array.from({ length: p.count }, () => [] as number[]),
                     idx: 0,
                     startedAt: Date.now(),
@@ -235,7 +285,7 @@ export function Mock(): JSX.Element {
               >
                 <span className="action-title">{p.label}</span>
                 <span className="action-sub">
-                  {enough ? p.note : `収録問題が不足しています（現在 ${QUESTIONS.length} 問）`}
+                  {enough ? p.note : `収録問題が不足しています（現在 ${pool} 問）`}
                 </span>
               </button>
             );
@@ -245,6 +295,17 @@ export function Mock(): JSX.Element {
           本番は五肢択一式が {EXAM_QUESTIONS} 問、{EXAM_MINUTES} 分です（法令 15 問 / 物化 10 問 / 性消 10 問）。
           <strong>合格には、3 科目それぞれで {Math.round(PASS_RATIO * 100)} % 以上が必要です。</strong>
           合計点ではありません。1 科目でも 6 割を切れば不合格になるので、この模試も科目ごとに判定します。
+        </p>
+        <p className="hint">
+          <strong>「科目免除」は、すでに乙種の免状を 1 つ持っている人の形式です。</strong>
+          他の類を受けるとき、法令と物化が免除され、{fieldName(EXEMPT_FIELD)}の {EXEMPT_QUESTIONS} 問を{' '}
+          {EXEMPT_MINUTES} 分で解きます（→{' '}
+          <button type="button" className="link-btn" onClick={() => navigate('textbook/i-1')}>
+            この試験の形
+          </button>
+          ）。
+          <strong>免除は乙種どうしの話で、甲種には及びません。</strong>
+          乙 4 が最初の 1 枚になる人は、こちらではなく「本番形式」を使ってください。
         </p>
         <p className="hint">
           ※ 出すのは<strong>この模試の結果が基準を満たすか</strong>までです。本番の合否を予想するものではありません。
@@ -260,6 +321,8 @@ export function Mock(): JSX.Element {
     const rate = Math.round((correct / session.items.length) * 100);
     const elapsed = Math.round((session.finishedAt - session.startedAt) / 1000);
     const scores = fieldScores(session.items, session.answers);
+    // 科目を絞った形式かどうか。免除された科目の行の書き方を変える
+    const exemptMode = session.config.fields !== undefined;
     const blank = session.answers.filter((a) => a.length === 0).length;
     // この試験で問われるのは速度でもある。持ち時間と実際のペースを比べる
     const perQuestion = elapsed / session.items.length;
@@ -334,6 +397,13 @@ export function Mock(): JSX.Element {
             合計点ではないので、<strong>1 科目でも 6 割を切れば不合格</strong>です。下の表は科目ごとに基準を満たしたかを出しています。
             ただし、これは<strong>この模試の結果</strong>であって、本番の合否予想ではありません。
           </p>
+          {exemptMode && (
+            <p className="hint">
+              これは<strong>科目免除の形式</strong>です。法令と物化は免除されるので、判定は
+              <strong>{fieldName(EXEMPT_FIELD)}の 1 科目だけ</strong>で決まります。
+              <strong>ほかの科目で取り返すことができません。</strong>
+            </p>
+          )}
           <div className="table-wrap">
             <table>
               <thead>
@@ -347,14 +417,17 @@ export function Mock(): JSX.Element {
               <tbody>
                 {scores.map((f) => {
                   const met = f.total > 0 && f.correct / f.total >= PASS_RATIO;
+                  // **免除された科目を「出題なし」と並べない。**
+                  // 空欄に見えると、点が取れなかったのかと読める。
+                  const exempted = exemptMode && f.id !== EXEMPT_FIELD;
                   return (
                     <tr key={f.id} className={f.total > 0 && !met ? 'low' : ''}>
                       <td>{fieldName(f.id)}</td>
+                      <td>{exempted ? '免除' : `${f.correct} / ${f.total}`}</td>
                       <td>
-                        {f.correct} / {f.total}
+                        {exempted ? '—' : f.total === 0 ? '出題なし' : `${Math.round((f.correct / f.total) * 100)}%`}
                       </td>
-                      <td>{f.total === 0 ? '出題なし' : `${Math.round((f.correct / f.total) * 100)}%`}</td>
-                      <td>{f.total === 0 ? '—' : met ? '満たす' : '満たさない'}</td>
+                      <td>{exempted ? '免除' : f.total === 0 ? '—' : met ? '満たす' : '満たさない'}</td>
                     </tr>
                   );
                 })}

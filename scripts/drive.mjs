@@ -474,7 +474,64 @@ show('確認問題の設定', (await visible()).slice(0, 500));
 
 // 模試。**科目ごとの判定が出るのがこのアプリの要。**
 await go('#/mock');
-show('模試の設定', (await visible()).slice(0, 800));
+show('模試の設定', (await visible()).slice(0, 900));
+
+// 科目免除の形式を、最後まで押して通す。
+//
+// **設定画面を読むだけでは、ボタンが効いているか分からない。**
+// 引き継ぎ書 §7「筋書きが押せていない」。
+{
+  const mReport = [];
+  const started = await click('科目免除');
+  mReport.push('「科目免除」を押す: ' + started);
+
+  if (started === 'OK') {
+    // 出題数と、出た問題の科目を数える
+    const total = await evaluate(
+      `(() => {
+         const el = document.querySelector('.exam-count');
+         return el ? el.innerText.trim() : '?';
+       })()`,
+    );
+    mReport.push('解答済みの表示: ' + total + '（… / 10 であること）');
+
+    const fields = new Set();
+    for (let i = 0; i < 10; i++) {
+      const chapter = await evaluate(
+        `(() => {
+           const el = document.querySelector('.tag-cat');
+           return el ? el.innerText.trim() : '';
+         })()`,
+      );
+      if (chapter) fields.add(chapter);
+      const n = await evaluate(
+        `[...document.querySelectorAll('button')].filter((x) => /^[アイウエオ]/.test(x.innerText.trim())).length`,
+      );
+      if (n !== 5) mReport.push((i + 1) + ' 問目: 選択肢が ' + n + ' 個（5 個であること）');
+      await choose(0);
+      const next = await click('次の問題');
+      if (next !== 'OK' && i < 9) mReport.push((i + 1) + ' 問目: 「次の問題」が ' + next);
+    }
+    mReport.push('出題された章: ' + [...fields].join(' / '));
+
+    const done1 = await click('採点する');
+    mReport.push('「採点する」を押す: ' + done1);
+
+    const text = await visible();
+    // 判定表で、免除された科目がどう出ているか
+    const hasExempt = text.includes('免除');
+    const hasNoQuestion = text.includes('出題なし');
+    mReport.push('判定表に「免除」が出る: ' + hasExempt);
+    mReport.push('判定表に「出題なし」が残っている: ' + hasNoQuestion + '（false であること）');
+    mReport.push(
+      '「ほかの科目で取り返すことができません」が出る: ' +
+        text.includes('取り返すことができません'),
+    );
+    show('科目免除の形式（採点まで）', mReport.join('\n') + '\n---\n' + text.slice(0, 1200));
+  } else {
+    show('科目免除の形式（採点まで）', mReport.join('\n'));
+  }
+}
 
 // ============================================================
 
