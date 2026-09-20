@@ -747,6 +747,46 @@ if (emptyChapters.length > 0) {
 }
 
 console.log('');
+// ---- 解説が名指しした選択肢と、answer が合っているか ----
+//
+// **8 つめ（`kouatsugas_otsu_exam_app`）で実際に 2 問見つかった型**なので、
+// 2026 年 9 月 20 日に系譜へ配りました。
+// **解説が「ウが誤り」と書いているのに answer が別の選択肢を指していると、
+// 正解したのに不正解と判定されます。**画面を見ても気づけません。
+//
+// ★ **正誤の向きを両方見ること**（引き継ぎ書 §6）。
+//   設問が「誤っているものはどれか」なら、正解は**誤りと宣言された記号**のほうです。
+//   向きを見ないで書いたら、「ウが誤り。……エが正しい組合せになっている」という解説の
+//   **「エが正しい」に引っかかって**誤検出しました。
+{
+  const LETTERS = 'アイウエオ';
+  const NEG = /誤(っている|りである|り)|適切でない|当てはまらない|該当しない|正しくない|不適切/;
+  const SAYS_OK = /([アイウエオ])(?:が|は)(?:正しい|正解|該当する|当てはまる|適切)/g;
+  const SAYS_NG = /([アイウエオ])(?:が|は)(?:誤り|誤っている|該当しない|正しくない|適切でない|当てはまらない)/g;
+  for (const q of QUESTIONS) {
+    const negative = NEG.test(q.question);
+    const re = negative ? SAYS_NG : SAYS_OK;
+    re.lastIndex = 0;
+    const named = new Set<string>();
+    for (const m of q.explanation.matchAll(re)) named.add(m[1]);
+    // **2 つ以上を名指ししている解説は、どれが正解かをここでは決められない。**
+    // 誤検出を出さないために見送る。
+    if (named.size !== 1) continue;
+    const want = LETTERS.indexOf([...named][0]);
+    if (want < 0 || want >= q.choices.length) continue;
+    // ★ 複数選択の問では `answer` が配列になる（`genai_passport_exam_app` の types.ts）。
+    //   解説が 1 つしか名指ししていないのに答えが複数あるなら、ここでは判定しない。
+    const ans = q.answer as number | readonly number[];
+    if (Array.isArray(ans)) continue;
+    if (want !== ans) {
+      err(
+        `問題 ${q.id}: 解説は「${[...named][0]}」を${negative ? '誤り' : '正しい'}としているのに、` +
+          `answer は ${(ans as number) + 1} 番を指しています`,
+      );
+    }
+  }
+}
+
 if (warnings.length > 0) {
   console.log(`--- 注意 ${warnings.length} 件 ---`);
   warnings.forEach((w) => console.log('  ' + w));
