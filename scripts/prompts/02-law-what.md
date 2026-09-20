@@ -1,7 +1,7 @@
 # 第 1 章「危険物とは何か」を書かせるプロンプト
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --sandbox workspace-write --color never \
   -o out-02.txt - < scripts/prompts/02-law-what.md
 ```
 

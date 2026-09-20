@@ -1,7 +1,7 @@
 # 第 8 章「第 4 類に共通する性状と対策」を書かせるプロンプト
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --sandbox workspace-write --color never \
   -o out-09.txt - < scripts/prompts/09-prop-common.md
 ```
 

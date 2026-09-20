@@ -1,7 +1,7 @@
 # 教本レビュー：入門編と「危険物とは何か」
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
+codex exec --sandbox read-only --color never \
   -o review-r1-intro-lw.txt - < scripts/prompts/review/r1-intro-lw.md
 ```
 

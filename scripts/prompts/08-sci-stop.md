@@ -1,7 +1,7 @@
 # 第 7 章「消火の理論と静電気」を書かせるプロンプト
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --sandbox workspace-write --color never \
   -o out-08.txt - < scripts/prompts/08-sci-stop.md
 ```
 

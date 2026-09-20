@@ -1,7 +1,7 @@
 # 確認問題レビュー：危険物に関する法令（45 問）
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
+codex exec --sandbox read-only --color never \
   - < scripts/prompts/review/q1-law.md > review-q1-law.txt 2>&1
 ```
 

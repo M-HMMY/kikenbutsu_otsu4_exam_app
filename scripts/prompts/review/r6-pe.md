@@ -1,7 +1,7 @@
 # 教本レビュー：品名ごとの性質
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
+codex exec --sandbox read-only --color never \
   -o review-r6-pe.txt - < scripts/prompts/review/r6-pe.md
 ```
 

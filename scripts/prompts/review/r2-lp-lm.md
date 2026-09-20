@@ -1,7 +1,7 @@
 # 教本レビュー：製造所等の区分と、危険物取扱者・保安体制
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
+codex exec --sandbox read-only --color never \
   -o review-r2-lp-lm.txt - < scripts/prompts/review/r2-lp-lm.md
 ```
 

@@ -1,7 +1,7 @@
 # 第 4 章「施設の基準・運搬・消火設備」を書かせるプロンプト
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --sandbox workspace-write --color never \
   -o out-05.txt - < scripts/prompts/05-law-rule.md
 ```
 

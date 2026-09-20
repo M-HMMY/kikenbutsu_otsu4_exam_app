@@ -1,7 +1,7 @@
 # 第 3 章「危険物取扱者と保安体制」を書かせるプロンプト
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox workspace-write --color never \
+codex exec --sandbox workspace-write --color never \
   -o out-04.txt - < scripts/prompts/04-law-people.md
 ```
 

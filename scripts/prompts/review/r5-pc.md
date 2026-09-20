@@ -1,7 +1,7 @@
 # 教本レビュー：第 4 類に共通する性状と対策
 
 ```bash
-codex exec --cd "C:/Dev/kikenbutsu_otsu4_exam_app" --sandbox read-only --color never \
+codex exec --sandbox read-only --color never \
   -o review-r5-pc.txt - < scripts/prompts/review/r5-pc.md
 ```
 
