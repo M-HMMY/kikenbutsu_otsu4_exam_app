@@ -730,6 +730,24 @@ for (const q of QUESTIONS) {
 // 記法としては正しくても、描くと崩れている場合がある（強調の中の数式など）。
 for (const p of renderCheck()) err(p);
 
+// ---- ★ 章の導入文が、仮置きのまま画面に出ていないか ----
+//
+// **★ 実際に起きた（2026 年 9 月 30 日）。**高圧ガス乙種版で立ち上げたときの仮置き
+// 「**この章はまだ書かれていません。**節割りと数値の台帳ができ次第、書きます（`docs/section-plan.md`）」が、
+// **本文を書き終えたあとも全章に残っていた。**高圧ガス乙種 23 章・甲種 24 章（公開中）・エネ管 熱 19 章。
+// コピーで次のアプリへ運ばれ、**3 本とも目次に「まだ書かれていません」と出ていた。**
+//
+// 型もビルドも通り、画面も崩れないので、**どの検査も鳴らなかった。**
+// さらに**開発用のファイル名を読者に見せ**、空の章では画面自身の「これから執筆します」と 2 回重なっていた。
+//
+// **未執筆の表示は画面（Textbook.tsx）が別に出す。導入文には、章で何をやるか・重み・力の入れ方を書くこと。**
+for (const c of CATEGORIES) {
+  const bad = ['まだ書かれていません', 'TODO', 'docs/'].find((w) => c.intro.includes(w));
+  if (bad !== undefined) {
+    err(`章「${c.name}」の導入文が仮置きのまま（「${bad}」を含む）。章で何をやるか・重み・力の入れ方を書くこと`);
+  }
+}
+
 // ---- 集計して表示 ----
 const sectionsPerCategory = new Map<string, number>();
 for (const s of SECTIONS) sectionsPerCategory.set(s.categoryId, (sectionsPerCategory.get(s.categoryId) ?? 0) + 1);
