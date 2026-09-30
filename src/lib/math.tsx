@@ -137,7 +137,21 @@ function render(src: string, keyPrefix: string): ReactNode[] {
         plain += name; // 未知の命令は名前をそのまま出す（読めなくはならない）
         continue;
       }
-      plain += src[i + 1] ?? ''; // \{ や \, などのエスケープ
+      // ★ LaTeX の空白の命令（\, \; \: \!）。英字でないので上の命令名の分岐に入らない。
+      //   **以前はここで記号をそのまま出していて、画面に「kg,m/s²」「101.325,kPa」「∫p,dV」と
+      //   読点が出ていた**（2026 年 9 月 30 日、姉妹アプリ 3 本で見つけた）。
+      //   \, \; \: は細い空白に、\! （負の空き）は何も出さない。
+      const space = src[i + 1];
+      if (space === ',' || space === ';' || space === ':') {
+        plain += '\u2009';
+        i += 2;
+        continue;
+      }
+      if (space === '!') {
+        i += 2;
+        continue;
+      }
+      plain += src[i + 1] ?? ''; // \{ \} などのエスケープ（記号そのものを出す）
       i += 2;
       continue;
     }

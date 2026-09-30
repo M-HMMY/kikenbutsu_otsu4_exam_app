@@ -13,6 +13,10 @@ import { isKnownCommand } from '../src/lib/mathSymbols';
 import { answerIndices, isMultiAnswer } from '../src/lib/answer';
 import { renderCheck } from './render-check';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+// 数式の空白の命令を実際に描いて確かめる検査で使う（下の「数式の空白の命令」）
+import { createElement as __ce } from 'react';
+import { renderToStaticMarkup as __rsm } from 'react-dom/server';
+import { Markdown as __Md } from '../src/lib/markdown';
 
 const BACKSLASH = String.fromCharCode(92);
 const LF = String.fromCharCode(10);
@@ -745,6 +749,21 @@ for (const c of CATEGORIES) {
   const bad = ['まだ書かれていません', 'TODO', 'docs/'].find((w) => c.intro.includes(w));
   if (bad !== undefined) {
     err(`章「${c.name}」の導入文が仮置きのまま（「${bad}」を含む）。章で何をやるか・重み・力の入れ方を書くこと`);
+  }
+}
+
+// ---- ★ 数式の空白の命令（\, など）が、記号として画面に出ていないか ----
+//
+// **★ 実際に起きた（2026 年 9 月 30 日）。**数式の描画部品が \, を「読点を出すエスケープ」と
+// 取り違えていて、画面に「kg,m/s²」「101.325,kPa」「∫p,dV」と出ていた（E資格・高圧ガス乙種・甲種）。
+// **描画部品のほうを直した。**古い部品を持ち込んで戻らないよう、実際に描いて確かめる。
+{
+  const B = String.fromCharCode(92);
+  for (const src of ['$a' + B + ',b$', '$a' + B + ';b$', '$a' + B + '!b$']) {
+    const text = __rsm(__ce(__Md, { source: src })).replace(/<[^>]+>/g, '');
+    if (/[,;!]/.test(text)) {
+      err(`数式 ${src} が画面で「${text.trim()}」になる。空白の命令が記号のまま出ている（src/lib/math.tsx）`);
+    }
   }
 }
 
